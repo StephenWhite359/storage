@@ -49,3 +49,47 @@ export const boxChip = (box) =>
 
 export const tagChips = (tags) =>
   tags.map((t) => `<span class="chip tag">${esc(t)}</span>`).join('');
+
+// A searchable, checkable dropdown for filtering by several values at once.
+// Renders as plain checkboxes with `name`, so it posts exactly like a native
+// multi-select (repeated `name=value` pairs) - no server-side changes needed
+// to consume it. `options` is [{ value, label, html?, selected }]; `html`
+// overrides the row's display markup (e.g. a glyph) while `label` stays the
+// plain-text form used for the button caption and the search match.
+export function multiSelectField({ name, emptyLabel, searchLabel, options }) {
+  const selected = options.filter((o) => o.selected);
+  const buttonLabel =
+    selected.length === 0
+      ? emptyLabel
+      : selected.length === 1
+      ? selected[0].label
+      : `${selected.length} selected`;
+
+  const rows = options
+    .map(
+      (o) => `<label class="msel-option" data-search="${esc(o.label.toLowerCase())}">
+        <input type="checkbox" name="${esc(name)}" value="${esc(o.value)}"
+               data-label="${esc(o.label)}"${o.selected ? ' checked' : ''}>
+        ${o.html ?? esc(o.label)}
+      </label>`
+    )
+    .join('');
+
+  return `<div class="msel" data-empty-label="${esc(emptyLabel)}">
+  <button type="button" class="msel-toggle" aria-expanded="false">
+    <span class="msel-label">${esc(buttonLabel)}</span>
+    <span class="msel-caret" aria-hidden="true">&#9662;</span>
+  </button>
+  <div class="msel-panel" hidden>
+    <input type="search" class="msel-search" placeholder="Search ${esc(
+      searchLabel || emptyLabel
+    )}&hellip;" aria-label="Search ${esc(searchLabel || emptyLabel)}">
+    <div class="msel-actions">
+      <button type="button" class="msel-clear">Deselect all</button>
+    </div>
+    <div class="msel-options">
+      ${rows || '<p class="hint" style="padding:6px 8px">Nothing to choose from.</p>'}
+    </div>
+  </div>
+</div>`;
+}

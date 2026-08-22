@@ -116,6 +116,42 @@ label input, label select, label textarea { margin-top: 4px; font-weight: 400; c
 .chip .glyph { font-size: 15px; }
 .chip.tag { color: var(--muted); }
 
+/* ------------------------------------------------------- multi-select --- */
+
+.msel { position: relative; }
+.msel-toggle {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; font-weight: 400; text-align: left;
+}
+.msel-toggle .msel-label {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.msel-toggle .msel-caret { color: var(--muted); font-size: 11px; flex: none; }
+.msel-toggle[aria-expanded="true"] { border-color: var(--accent); }
+
+.msel-panel {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 30;
+  width: max(100%, 240px); max-width: 320px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16);
+}
+.msel-search { margin-bottom: 8px; }
+.msel-actions { display: flex; justify-content: flex-end; margin-bottom: 4px; }
+.msel-clear {
+  background: none; border: 0; padding: 2px 4px;
+  font-size: 13px; font-weight: 600; color: var(--accent); cursor: pointer;
+}
+.msel-clear:hover { text-decoration: underline; }
+
+.msel-options { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 1px; }
+.msel-option {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; border-radius: 8px; font-size: 14px; font-weight: 400; cursor: pointer;
+}
+.msel-option:hover { background: var(--chip); }
+.msel-option input { width: 16px; height: 16px; flex: none; margin: 0; }
+.msel-option .glyph { font-size: 16px; }
+
 /* ------------------------------------------------------------------ items */
 
 .items { list-style: none; margin: 0; padding: 0; }

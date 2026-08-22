@@ -1,6 +1,7 @@
-import { esc, layout, navTabs, tagChips } from './layout.js';
+import { esc, layout, multiSelectField, navTabs, tagChips } from './layout.js';
 import { addBoxPanel } from './boxes.js';
 
+// Single-select: which one box an item is assigned to (add-item, move).
 const boxOption = (box, selectedCode) =>
   `<option value="${esc(box.code)}"${box.code === selectedCode ? ' selected' : ''}>${esc(
     box.glyph
@@ -23,14 +24,39 @@ const itemRow = (item) => `
 </li>`;
 
 export function itemsPage({ items, boxes, tags, candidates, filters, here, error }) {
-  // Filtering to a box is the strongest signal about where a new item belongs;
-  // otherwise fall back to the default box.
-  const addBoxCode = filters.box || boxes.find((b) => b.is_default)?.code;
+  const hasFilter = filters.q || filters.boxes.length || filters.tags.length;
+
+  // Filtering to exactly one box is the strongest signal about where a new
+  // item belongs; with zero or several boxes selected there is no single
+  // answer, so fall back to the default box.
+  const filteredBoxCode = filters.boxes.length === 1 ? filters.boxes[0] : null;
+  const addBoxCode = filteredBoxCode || boxes.find((b) => b.is_default)?.code;
 
   // The Move select should not default to the box you are already looking at,
   // nor to Not in Storage, which has its own button beside it.
   const moveBoxCode =
-    boxes.find((b) => !b.is_default && b.code !== filters.box)?.code || addBoxCode;
+    boxes.find((b) => !b.is_default && b.code !== filteredBoxCode)?.code || addBoxCode;
+
+  const boxDropdown = multiSelectField({
+    name: 'box',
+    emptyLabel: 'All boxes',
+    options: boxes.map((b) => ({
+      value: b.code,
+      label: `${b.glyph} ${b.name}`,
+      html: `<span class="glyph">${esc(b.glyph)}</span> ${esc(b.name)}`,
+      selected: filters.boxes.includes(b.code),
+    })),
+  });
+
+  const tagDropdown = multiSelectField({
+    name: 'tag',
+    emptyLabel: 'All tags',
+    options: tags.map((t) => ({
+      value: t.id,
+      label: t.name,
+      selected: filters.tags.includes(t.id),
+    })),
+  });
 
   const filterBar = `
 <form class="card" method="get" action="/items" id="filter-form">
@@ -39,27 +65,14 @@ export function itemsPage({ items, boxes, tags, candidates, filters, here, error
       <input type="search" name="q" value="${esc(filters.q)}" placeholder="Item name or note">
     </label>
     <label>Box
-      <select name="box" data-autosubmit>
-        <option value="">All boxes</option>
-        ${boxes.map((b) => boxOption(b, filters.box)).join('')}
-      </select>
+      ${boxDropdown}
     </label>
     <label>Tag
-      <select name="tag" data-autosubmit>
-        <option value="">All tags</option>
-        ${tags
-          .map(
-            (t) =>
-              `<option value="${esc(t.id)}"${
-                String(t.id) === String(filters.tag) ? ' selected' : ''
-              }>${esc(t.name)}</option>`
-          )
-          .join('')}
-      </select>
+      ${tagDropdown}
     </label>
     <div class="shrink">
       <button type="submit" class="primary">Filter</button>
-      ${filters.q || filters.box || filters.tag ? '<a class="btn" href="/items">Clear</a>' : ''}
+      ${hasFilter ? '<a class="btn" href="/items">Clear</a>' : ''}
     </div>
   </div>
 </form>`;
@@ -104,7 +117,7 @@ export function itemsPage({ items, boxes, tags, candidates, filters, here, error
   const list = items.length
     ? `<ul class="items" id="item-list">${items.map(itemRow).join('')}</ul>`
     : `<p class="empty">No items match. ${
-        filters.q || filters.box || filters.tag ? '<a href="/items">Clear filters</a>' : ''
+        hasFilter ? '<a href="/items">Clear filters</a>' : ''
       }</p>`;
 
   const bulk = items.length

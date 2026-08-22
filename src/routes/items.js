@@ -10,25 +10,24 @@ import {
   nextIdentifiers,
 } from '../db.js';
 import { itemsPage } from '../views/items.js';
-import { asIds, itemsUrl, safeNext } from '../util.js';
+import { asCodes, asIds, itemsUrl, parseQuery, safeNext } from '../util.js';
 
 const CYCLE_DEPTH = 12;
 
 const filtersFrom = (query = {}) => ({
   q: String(query.q || ''),
-  box: String(query.box || ''),
-  tag: Number(query.tag) || '',
+  boxes: asCodes(query.box),
+  tags: asIds(query.tag),
 });
 
 // Filters survive a POST by riding along in the `next` field, so an error
 // re-render shows the same filtered page the user was looking at.
-const filtersFromNext = (next) =>
-  filtersFrom(Object.fromEntries(new URL(next, 'http://local').searchParams));
+const filtersFromNext = (next) => filtersFrom(parseQuery(next));
 
 // The single place the Items view is assembled.
 function render(reply, filters, error = null) {
   const html = itemsPage({
-    items: listItems({ q: filters.q, boxCode: filters.box, tagId: filters.tag || null }),
+    items: listItems({ q: filters.q, boxCodes: filters.boxes, tagIds: filters.tags }),
     boxes: boxOptions(),
     tags: allTags(),
     candidates: nextIdentifiers(CYCLE_DEPTH),

@@ -182,7 +182,10 @@ function upsertTag(name) {
 // Escapes the LIKE wildcards so a search for "50%" means the literal string.
 const likeTerm = (q) => '%' + q.replace(/[\\%_]/g, (c) => '\\' + c) + '%';
 
-export function listItems({ q = '', boxCode = '', tagId = null } = {}) {
+// boxCodes/tagIds are OR'd within themselves (an item in any selected box,
+// with any selected tag) and AND'd against each other - the usual faceted
+// filter semantics.
+export function listItems({ q = '', boxCodes = [], tagIds = [] } = {}) {
   const where = [];
   const params = [];
 
@@ -190,13 +193,17 @@ export function listItems({ q = '', boxCode = '', tagId = null } = {}) {
     where.push("(i.name LIKE ? ESCAPE '\\' OR ifnull(i.note, '') LIKE ? ESCAPE '\\')");
     params.push(likeTerm(q.trim()), likeTerm(q.trim()));
   }
-  if (boxCode) {
-    where.push('b.code = ?');
-    params.push(boxCode);
+  if (boxCodes.length) {
+    where.push(`b.code IN (${boxCodes.map(() => '?').join(',')})`);
+    params.push(...boxCodes);
   }
-  if (tagId) {
-    where.push('EXISTS (SELECT 1 FROM item_tags m WHERE m.item_id = i.id AND m.tag_id = ?)');
-    params.push(tagId);
+  if (tagIds.length) {
+    where.push(
+      `EXISTS (SELECT 1 FROM item_tags m WHERE m.item_id = i.id AND m.tag_id IN (${tagIds
+        .map(() => '?')
+        .join(',')}))`
+    );
+    params.push(...tagIds);
   }
 
   const sql = `
@@ -211,7 +218,7 @@ export function listItems({ q = '', boxCode = '', tagId = null } = {}) {
     JOIN boxes b ON b.id = i.box_id
     JOIN identifiers d ON d.id = b.identifier_id
     ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
-    ORDER BY i.name COLLATE NOCASE`;
+    ORDER BY b.is_default DESC, d.name COLLATE NOCASE, i.name COLLATE NOCASE`;
 
   return db
     .prepare(sql)
