@@ -30,7 +30,24 @@ function openDatabase(path) {
 
 export function migrate() {
   db.exec(readFileSync(resolve(here, 'schema.sql'), 'utf8'));
+  addMissingColumns();
   seed();
+}
+
+// schema.sql is all CREATE ... IF NOT EXISTS, which is a no-op on a database
+// that already has the table - so a column added to a CREATE TABLE body never
+// reaches an existing database (local or the live one). Each column added after
+// the first release is listed here and applied once, additively and nullable, so
+// existing rows and already-printed labels are untouched.
+function addMissingColumns() {
+  const columnsAdded = [{ table: 'boxes', column: 'description', type: 'TEXT' }];
+
+  for (const { table, column, type } of columnsAdded) {
+    const present = db.prepare(`PRAGMA table_info(${table})`).all();
+    if (!present.some((c) => c.name === column)) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+    }
+  }
 }
 
 // Runs once, on an empty database. The shuffle happens here and only here: the
@@ -96,7 +113,7 @@ export const boxByCode = (code) =>
 // tags across each box's contents. The items list and the boxes grid are two
 // renderings over this same layer.
 const BOX_SUMMARIES = `
-  SELECT b.id, b.code, b.is_default, i.name, i.glyph,
+  SELECT b.id, b.code, b.is_default, b.description, i.name, i.glyph,
          (SELECT count(*) FROM items it WHERE it.box_id = b.id) AS item_count,
          (SELECT group_concat(name, '${SEP}') FROM (
             SELECT DISTINCT t.name
@@ -142,14 +159,14 @@ export const nextIdentifiers = (n) =>
 
 // The UNIQUE constraint on boxes.identifier_id is what makes this safe against
 // two tabs claiming the same identifier: the second insert throws.
-export function createBox(identifierId) {
+export function createBox(identifierId, description = null) {
   const insert = db.prepare(
-    'INSERT INTO boxes (code, identifier_id, is_default) VALUES (?, ?, 0)'
+    'INSERT INTO boxes (code, identifier_id, is_default, description) VALUES (?, ?, 0, ?)'
   );
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = generateCode();
     try {
-      insert.run(code, identifierId);
+      insert.run(code, identifierId, description);
       return code;
     } catch (err) {
       // Retry only a code collision; an identifier collision is a real conflict.
@@ -161,6 +178,28 @@ export function createBox(identifierId) {
   }
   throw new Error('could not generate a unique box code');
 }
+
+export const updateBoxDescription = (boxId, description) =>
+  db.prepare('UPDATE boxes SET description = ? WHERE id = ?').run(description, boxId);
+
+// items.box_id is NOT NULL with no ON DELETE, so a box that still holds items
+// cannot simply be deleted - the database refuses. Move the items first and
+// delete second, in one transaction, so a failure part-way leaves every item
+// exactly where it was. The is_default = 0 guard is a second line of defence
+// behind the route's own check: the "Not in Storage" box must never go.
+export const deleteBox = db.transaction((boxId, targetBoxId) => {
+  const moved = db
+    .prepare('UPDATE items SET box_id = ? WHERE box_id = ?')
+    .run(targetBoxId, boxId).changes;
+
+  const removed = db
+    .prepare('DELETE FROM boxes WHERE id = ? AND is_default = 0')
+    .run(boxId).changes;
+
+  // Throwing inside db.transaction rolls the item move back too.
+  if (removed !== 1) throw new Error('box was not deleted');
+  return moved;
+});
 
 /* ----------------------------------------------------------------- tags --- */
 

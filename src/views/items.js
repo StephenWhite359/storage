@@ -1,11 +1,5 @@
-import { esc, layout, multiSelectField, navTabs, tagChips } from './layout.js';
+import { boxOption, esc, layout, multiSelectField, navTabs, tagChips } from './layout.js';
 import { addBoxPanel } from './boxes.js';
-
-// Single-select: which one box an item is assigned to (add-item, move).
-const boxOption = (box, selectedCode) =>
-  `<option value="${esc(box.code)}"${box.code === selectedCode ? ' selected' : ''}>${esc(
-    box.glyph
-  )} ${esc(box.name)}</option>`;
 
 const itemRow = (item) => `
 <li>

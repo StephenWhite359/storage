@@ -16,7 +16,8 @@ export default async function scanRoutes(app) {
           body: `<div class="card">
   <h2>That label is not recognised</h2>
   <p class="hint">The code <strong>${escapeCode(request.params.code)}</strong> does not
-     match any box. It may have been printed against a different address.</p>
+     match any box. The box may have been deleted, or the label may have been
+     printed against a different address.</p>
   <a class="btn" href="/boxes">See all boxes</a>
 </div>`,
         })

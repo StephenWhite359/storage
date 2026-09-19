@@ -35,6 +35,7 @@ const label = async (box) => `
       <div class="ident">
         <div class="glyph">${esc(box.glyph)}</div>
         <div class="name">${esc(box.name)}</div>
+        ${box.description ? `<div class="desc">${esc(box.description)}</div>` : ''}
       </div>
       <div class="qr">
         ${await qrSvg(box.code)}

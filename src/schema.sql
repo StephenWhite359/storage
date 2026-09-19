@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS boxes (
   code TEXT NOT NULL UNIQUE,           -- short slug embedded in the QR URL
   identifier_id INTEGER NOT NULL UNIQUE REFERENCES identifiers(id),
   is_default INTEGER NOT NULL DEFAULT 0,
+  description TEXT,                    -- optional; printed on the label when set
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE UNIQUE INDEX IF NOT EXISTS boxes_one_default ON boxes(is_default) WHERE is_default = 1;

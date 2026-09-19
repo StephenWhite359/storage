@@ -50,6 +50,13 @@ export const boxChip = (box) =>
 export const tagChips = (tags) =>
   tags.map((t) => `<span class="chip tag">${esc(t)}</span>`).join('');
 
+// One <option> for a single-select of boxes: which one box an item is assigned
+// to (add item, move, and where a deleted box's items go).
+export const boxOption = (box, selectedCode) =>
+  `<option value="${esc(box.code)}"${box.code === selectedCode ? ' selected' : ''}>${esc(
+    box.glyph
+  )} ${esc(box.name)}</option>`;
+
 // A searchable, checkable dropdown for filtering by several values at once.
 // Renders as plain checkboxes with `name`, so it posts exactly like a native
 // multi-select (repeated `name=value` pairs) - no server-side changes needed

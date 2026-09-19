@@ -39,6 +39,20 @@ be deleted.
 filtered to that box, reusing the same page and the same query layer as
 everything else.
 
+**Editing and deleting a box.** Each real tile on the Boxes page has an **Edit**
+link. The edit page holds an optional **description** (up to 120 characters) and a
+**Delete box** section. Deleting never deletes items: the confirmation shows how
+many the box holds and asks where they should go, with Not in Storage preselected.
+The move and the delete happen in one transaction, so a failure leaves every item
+where it was. A deleted box's picture and name go back into the pool at their
+original place in the draw order, and its printed label shows "not recognised"
+if scanned.
+
+**Existing databases upgrade themselves.** `schema.sql` only creates missing
+tables, so columns added later (currently `boxes.description`) are applied by
+`addMissingColumns()` in `src/db.js` on boot — additive and nullable, and safe to
+run repeatedly. Take a backup first if you like, but nothing is rewritten.
+
 ## Printing labels
 
 The print sheet is laid out for **Avery 15264** shipping labels — 4" x 3-1/3",
@@ -54,8 +68,10 @@ guides** and run one page on plain paper first — hold it against a label sheet
 to confirm alignment before committing a real sheet.
 
 Each label carries the identifier glyph and name on the left, and the QR with its
-code on the right. The QR keeps a 4-module quiet zone so it scans reliably even
-with the glyph alongside. The grid geometry lives in the print-sheet section of
+code on the right. If the box has a description it prints small, under the name
+(about five lines; anything longer is clipped). It is read when you print, so
+editing a description does not change labels already printed. The QR keeps a
+4-module quiet zone so it scans reliably even with the glyph alongside. The grid geometry lives in the print-sheet section of
 `public/app.css`; the numbers there are the Avery template and should not be
 rounded or "tidied".
 

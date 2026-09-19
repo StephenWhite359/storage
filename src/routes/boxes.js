@@ -1,7 +1,17 @@
-import { boxSummaries, createBox, db, nextIdentifiers } from '../db.js';
-import { boxesPage } from '../views/boxes.js';
+import {
+  boxByCode,
+  boxOptions,
+  boxSummaries,
+  createBox,
+  db,
+  defaultBox,
+  deleteBox,
+  nextIdentifiers,
+  updateBoxDescription,
+} from '../db.js';
+import { boxEditPage, boxesPage } from '../views/boxes.js';
 import { printPage } from '../views/print.js';
-import { asArray, safeNext } from '../util.js';
+import { asArray, cleanDescription, safeNext } from '../util.js';
 
 const CYCLE_DEPTH = 12;
 
@@ -13,6 +23,11 @@ const render = (reply, error = null) =>
       error,
     })
   );
+
+// The default box has no label and no edit page: it cannot be described or
+// deleted, so anything that resolves to it is treated as "nothing to edit".
+const editableSummary = (code) =>
+  boxSummaries().find((b) => b.code === code && !b.is_default);
 
 export default async function boxRoutes(app) {
   app.get('/boxes', async (_request, reply) => render(reply));
@@ -28,7 +43,7 @@ export default async function boxRoutes(app) {
     }
 
     try {
-      createBox(identifierId);
+      createBox(identifierId, cleanDescription(body.description));
     } catch (err) {
       // Another tab claimed it between the check above and the insert.
       if (err.code?.startsWith('SQLITE_CONSTRAINT')) {
@@ -38,6 +53,48 @@ export default async function boxRoutes(app) {
     }
 
     return reply.redirect(next, 302);
+  });
+
+  app.get('/boxes/:code/edit', async (request, reply) => {
+    const box = editableSummary(request.params.code);
+    if (!box) return reply.redirect('/boxes', 302);
+
+    return reply.type('text/html').send(boxEditPage({ box, boxes: boxOptions() }));
+  });
+
+  app.post('/boxes/:code/edit', async (request, reply) => {
+    const box = boxByCode(request.params.code);
+    if (!box || box.is_default) return reply.redirect('/boxes', 302);
+
+    updateBoxDescription(box.id, cleanDescription(request.body?.description));
+    return reply.redirect('/boxes', 302);
+  });
+
+  app.post('/boxes/:code/delete', async (request, reply) => {
+    const body = request.body || {};
+    const box = boxByCode(request.params.code);
+
+    // Already gone (a double submit, or a second tab): the outcome the user
+    // wanted has happened, so land on the list rather than erroring.
+    if (!box) return reply.redirect('/boxes', 302);
+    if (box.is_default) {
+      return reply.code(400).send('The Not in Storage box cannot be deleted.');
+    }
+
+    // The in-page panel is not the only gate: posting straight at this route
+    // cannot skip the confirmation, same as the Items bulk delete.
+    if (body.confirm !== '1') return reply.code(400).send('Delete needs confirmation.');
+
+    // A blank destination means Not in Storage. Every check happens before
+    // anything is written, so a bad request leaves the box and its items alone.
+    const moveTo = String(body.move_to || '').trim();
+    const target = moveTo ? boxByCode(moveTo) : defaultBox();
+    if (!target || target.id === box.id) {
+      return reply.code(400).send('Choose a different box to move the items to.');
+    }
+
+    deleteBox(box.id, target.id);
+    return reply.redirect('/boxes', 302);
   });
 
   // The default box has no physical counterpart, so it is filtered out here as
@@ -55,7 +112,7 @@ export default async function boxRoutes(app) {
     const placeholders = codes.map(() => '?').join(',');
     const boxes = db
       .prepare(
-        `SELECT b.code, i.name, i.glyph
+        `SELECT b.code, b.description, i.name, i.glyph
          FROM boxes b JOIN identifiers i ON i.id = b.identifier_id
          WHERE b.code IN (${placeholders}) AND b.is_default = 0
          ORDER BY i.name COLLATE NOCASE`

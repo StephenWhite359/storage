@@ -83,7 +83,9 @@ button:hover, .btn:hover { border-color: var(--muted); }
 button.danger { color: var(--danger); border-color: var(--danger); background: var(--danger-bg); }
 button:disabled { opacity: .45; cursor: not-allowed; }
 
-input[type=text], input[type=search], input[type=password], select, textarea {
+/* `input:not([type])` matters: a bare <input name="..."> is a text input but
+   matches none of the [type=...] selectors, so it would render unstyled. */
+input:not([type]), input[type=text], input[type=search], input[type=password], select, textarea {
   font: inherit; color: var(--ink); background: var(--card);
   border: 1px solid var(--line); border-radius: var(--radius);
   padding: 9px 10px; width: 100%; min-width: 0;
@@ -199,12 +201,31 @@ label input, label select, label textarea { margin-top: 4px; font-weight: 400; c
 .box-tile .count { color: var(--muted); font-size: 13px; }
 .box-tile .tags { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
 .box-tile .pick { position: absolute; top: 10px; left: 10px; width: 18px; height: 18px; }
+.box-tile .desc {
+  color: var(--muted); font-size: 12.5px; line-height: 1.3; margin-top: 4px;
+  overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+/* `.box-tile a` above makes every link a block; this one is a small pill in the
+   corner opposite the print checkbox. */
+.box-tile a.tile-edit {
+  position: absolute; top: 8px; right: 8px; display: inline-block;
+  padding: 2px 9px; border-radius: 999px; background: var(--chip);
+  color: var(--muted); font-size: 12px; font-weight: 600;
+}
+.box-tile a.tile-edit:hover { color: var(--ink); }
 
 /* ------------------------------------------------------- add box preview */
 
 .id-preview { text-align: center; padding: 8px 0 4px; }
 .id-preview .glyph { font-size: 56px; line-height: 1.1; }
 .id-preview .name { font-weight: 600; font-size: 18px; }
+
+/* --------------------------------------------------------- edit box page */
+
+.edit-ident { text-align: center; padding: 4px 0 16px; }
+.edit-ident .glyph { font-size: 64px; line-height: 1.1; }
+.edit-ident .name { font-weight: 600; font-size: 20px; }
 
 /* ------------------------------------------------------------ print sheet */
 /* Avery 15264 / 5164 / 5264 / 8164: 4in x 3-1/3in, 6 per US Letter sheet.
@@ -251,6 +272,14 @@ label input, label select, label textarea { margin-top: 4px; font-weight: 400; c
 .label .name {
   font-size: 0.22in; font-weight: 700; line-height: 1.15;
   margin-top: 0.07in; overflow-wrap: anywhere;
+}
+/* Optional. Five lines at this size fit in the ~1.4in left under the picture and
+   name, so the QR column and the Avery grid geometry are never affected; anything
+   longer is clipped rather than reflowed. */
+.label .desc {
+  font-size: 0.13in; line-height: 1.2; margin-top: 0.06in;
+  overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden;
 }
 .label .qr { flex: 0 0 1.85in; text-align: center; }
 .label .qr svg { width: 1.85in; height: 1.85in; display: block; }
