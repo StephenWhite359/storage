@@ -56,7 +56,11 @@ export async function printPage(boxes) {
     <strong>${labels.length} ${labels.length === 1 ? 'label' : 'labels'}</strong>
     on ${sheetCount} ${sheetCount === 1 ? 'sheet' : 'sheets'} &middot; Avery 15264
     <div class="hint">Print at <strong>100% scale</strong> with margins set to
-      <strong>None</strong>, or the labels will not line up.</div>
+      <strong>None</strong>, or the labels will not line up. Also turn off
+      <strong>Headers and footers</strong> (under "More settings") - if it's on,
+      the browser reserves space for a URL/date/page-number strip that doesn't
+      fit on a full-bleed sheet, which pushes out a near-blank extra page after
+      every real one.</div>
   </div>
   <label class="guidetoggle">
     <input type="checkbox" id="guides"> Print cut guides

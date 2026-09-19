@@ -67,6 +67,7 @@ ${addBoxPanel(candidates, '/boxes')}
   </div>
   <div class="selbar">
     <span class="count">Select boxes to label</span>
+    <button type="button" class="shrink" id="select-all-boxes">Select all</button>
     <button type="submit" class="primary" id="print-btn" disabled>Print QR</button>
   </div>
 </form>`;

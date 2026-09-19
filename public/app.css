@@ -267,6 +267,11 @@ label input, label select, label textarea { margin-top: 4px; font-weight: 400; c
   @page { size: 8.5in 11in; margin: 0; }
   html, body { margin: 0; padding: 0; background: #fff; }
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* <main> always wraps page content (layout()'s `chrome` option only toggles
+     the header/footer), and its normal 16px/48px padding is otherwise unreset
+     here - stacked on a .sheet that is exactly one page tall, that pushed every
+     print into a second, near-blank page regardless of label count. */
+  main { margin: 0; padding: 0; }
   .noprint { display: none !important; }
   .sheets { overflow: visible; padding: 0; }
   .sheet {
