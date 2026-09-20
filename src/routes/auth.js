@@ -56,7 +56,8 @@ const loginPage = (next, error) =>
   });
 
 // Only paths that must work before a session exists.
-const isOpen = (url) => url.startsWith('/login') || url.startsWith('/static/');
+const isOpen = (url) =>
+  url.startsWith('/login') || url.startsWith('/static/') || url === '/favicon.ico';
 
 // Registered at the top level in server.js - hooks added inside a plugin are
 // encapsulated to that plugin and would not guard the other routes.
