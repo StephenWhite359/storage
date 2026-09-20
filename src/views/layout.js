@@ -1,3 +1,7 @@
+import { backupStatus } from '../db.js';
+import { requestValues } from '../requestContext.js';
+import { safeNext } from '../util.js';
+
 const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
 // Every interpolation of stored text goes through this. Item names, notes and
@@ -9,7 +13,70 @@ export const esc = (value) =>
 
 export const attr = (value) => `"${esc(value)}"`;
 
+// SQLite's datetime('now') is UTC as "YYYY-MM-DD HH:MM:SS". Rendered as a <time>
+// so app.js can show it in the viewer's own timezone; the server-side text is a
+// UTC date, which is only the fallback.
+function dateTag(sqliteUtc) {
+  const iso = `${sqliteUtc.replace(' ', 'T')}Z`;
+  const label = new Date(iso).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
+  });
+  return `<time datetime="${esc(iso)}">${esc(label)}</time>`;
+}
+
+// Backups are still manual, so the app says when one is due. The download is a
+// POST form rather than a link: a GET can be fetched by prefetching or link
+// previews, which would mark a backup as taken that nobody downloaded.
+const backupForm = (label, cls = '') =>
+  `<form class="backup-form" method="post" action="/api/backup"><button type="submit"${
+    cls ? ` class="${cls}"` : ''
+  }>${label}</button></form>`;
+
+// Two states. "Unbacked": offer the download. "Awaiting": this browser has
+// downloaded but nobody has confirmed the file saved, so ask - the server cannot
+// tell a saved download from a cancelled save dialog. The banner only clears on
+// that confirmation. The awaiting parts also ride along in a <template> so app.js
+// can swap to them the moment a download is clicked, without reloading the page.
+const downloadParts = ({ backedUpAt }) => `
+  <span class="backup-msg"><strong>Unbacked changes</strong> <span class="backup-sub">&middot; ${
+    backedUpAt ? `last backup ${dateTag(backedUpAt)}` : 'no backup yet'
+  }</span></span>
+  <span class="backup-actions">${backupForm('Download backup', 'primary')}</span>`;
+
+const awaitingParts = (next) => `
+  <span class="backup-msg"><strong>Backup downloaded</strong> <span class="backup-sub">&middot; did it save?</span></span>
+  <span class="backup-actions">
+    <form class="backup-confirm" method="post" action="/api/backup/confirm">
+      <input type="hidden" name="next" value="${esc(next)}">
+      <button type="submit" class="primary">Yes, it saved</button>
+    </form>
+    ${backupForm('Download again')}
+  </span>`;
+
+function backupBanner(status) {
+  const { url, backupPending: pending } = requestValues();
+  const next = safeNext(url);
+  const awaiting =
+    pending != null && pending > status.backedUpRevision && pending <= status.revision;
+
+  if (awaiting) {
+    return `<div class="backup-banner" role="status">${awaitingParts(next)}</div>`;
+  }
+  if (!status.unbacked) return '';
+  return `<div class="backup-banner" role="status">${downloadParts(status)}
+  <template id="backup-awaiting">${awaitingParts(next)}</template>
+</div>`;
+}
+
+const backupFooter = ({ backedUpAt }) =>
+  `<footer class="foot">${backupForm('Download backup', 'linkbtn')}${
+    backedUpAt ? `<span class="foot-note">Last backup ${dateTag(backedUpAt)}</span>` : ''
+  }</footer>`;
+
 export function layout({ title, nav = '', body, scripts = true, bodyEnd = '', chrome = true }) {
+  const backup = chrome ? backupStatus() : null;
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -25,13 +92,14 @@ ${
     ? `<header class="topbar">
   <nav class="tabs">${nav}</nav>
   <form class="logout" method="post" action="/logout"><button type="submit">Lock</button></form>
-</header>`
+</header>
+${backupBanner(backup)}`
     : ''
 }
 <main>
 ${body}
 </main>
-${chrome ? '<footer class="foot"><a href="/api/backup">Download backup</a></footer>' : ''}
+${chrome ? backupFooter(backup) : ''}
 ${scripts ? '<script src="/static/app.js"></script>' : ''}${bodyEnd}
 </body>
 </html>`;

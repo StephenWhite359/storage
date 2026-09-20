@@ -94,7 +94,38 @@ APP_URL=https://your-app.example.com npm run backup
 
 Pulls a `VACUUM INTO` snapshot — consistent even while the app is in use — into
 `backups/`, then keeps only the 3 most recent. `BACKUP_KEEP` changes how many.
-There is also a **Download backup** link in the app footer for a one-off copy.
+
+**Dev vs prod.** Every backup is named for the deployment that produced it —
+`storage-dev-…` from a local run, `storage-prod-…` from a server running with
+`NODE_ENV=production` (which the Railway setup below requires). The script
+rotates each label separately, so pulling dev backups never pushes out a prod one.
+
+**Unbacked-changes notice.** The app tracks whether anything has changed since
+the last backup was *confirmed*. When it has, a banner across the top says
+**Unbacked changes** with a **Download backup** button (the footer has the same
+button, plus the date of the last backup).
+
+Downloading alone does not clear it: the server can't see whether you accepted or
+cancelled the browser's save dialog. After you click Download the banner asks
+**"Backup downloaded — did it save?"**; **Yes, it saved** clears it, and
+**Download again** retries. Ignore it and it simply stays until you confirm.
+Confirmation covers only what was in the file you downloaded, so an edit made
+after the download keeps the notice up.
+
+`npm run backup` needs no click: it confirms to the app itself, only after the
+file is written to disk. If that confirmation fails (network, wrong PIN) the
+backup is still saved, the script prints a warning, and the app keeps showing the
+notice — a stale warning, never a false all-clear.
+
+How it works: a one-row `backup_state` table holds a `revision` counter, bumped
+by database triggers on `boxes`, `items`, `tags` and `item_tags`, and the
+revision the last confirmed backup captured. It is a counter rather than a
+timestamp so an edit in the same second as a backup can't be missed. Each
+download returns the revision it contains (`x-storage-revision`, and a cookie so
+the browser can confirm it later); `POST /api/backup/confirm` promotes exactly
+that revision. A brand-new database shows the notice until it has been backed up
+once. The state is server-side, so a confirmed backup from any device clears it
+everywhere.
 
 ## Deploying to Railway
 

@@ -31,6 +31,7 @@ function openDatabase(path) {
 export function migrate() {
   db.exec(readFileSync(resolve(here, 'schema.sql'), 'utf8'));
   addMissingColumns();
+  trackBackups();
   seed();
 }
 
@@ -48,6 +49,77 @@ function addMissingColumns() {
       db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
     }
   }
+}
+
+// Tables whose rows are user data. Any write to one advances the backup
+// revision. `identifiers` is seed data that never changes after boot.
+const TRACKED_TABLES = ['boxes', 'items', 'tags', 'item_tags'];
+
+// A one-row counter of changes versus the change a backup last captured. Done
+// with triggers rather than in the routes so no write path - present or future -
+// can forget to count. The counter is an integer, not a timestamp: datetime('now')
+// only has one-second resolution, so an edit in the same second as a backup would
+// compare as "not newer" and go unreported. The timestamps are for display only.
+//
+// It starts at revision 1 / backed up 0, so a database that has never been
+// downloaded reports unbacked changes straight away. Triggers are dropped and
+// recreated each boot so their definition always matches this file.
+function trackBackups() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS backup_state (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      revision INTEGER NOT NULL,
+      changed_at TEXT NOT NULL,
+      backed_up_revision INTEGER NOT NULL,
+      backed_up_at TEXT
+    );
+    INSERT OR IGNORE INTO backup_state (id, revision, changed_at, backed_up_revision)
+    VALUES (1, 1, datetime('now'), 0);
+  `);
+
+  const triggers = TRACKED_TABLES.flatMap((table) =>
+    ['INSERT', 'UPDATE', 'DELETE'].map((event) => {
+      const name = `backup_track_${table}_${event.toLowerCase()}`;
+      return `
+        DROP TRIGGER IF EXISTS ${name};
+        CREATE TRIGGER ${name} AFTER ${event} ON ${table}
+        BEGIN
+          UPDATE backup_state
+          SET revision = revision + 1, changed_at = datetime('now')
+          WHERE id = 1;
+        END;`;
+    })
+  );
+  db.exec(`BEGIN;${triggers.join('')}COMMIT;`);
+}
+
+export const currentRevision = () =>
+  db.prepare('SELECT revision FROM backup_state WHERE id = 1').get().revision;
+
+// Marks everything up to `revision` as backed up. Called only when a backup is
+// confirmed to have landed (see routes/backup.js) - downloading alone does not
+// count, because the server cannot see what the browser does with the file.
+// Refuses a revision from the future, and never moves backwards, so a slow, older
+// confirmation cannot un-clear a newer one.
+export function confirmBackup(revision) {
+  if (!Number.isInteger(revision) || revision < 0 || revision > currentRevision()) return false;
+  db.prepare(
+    `UPDATE backup_state
+     SET backed_up_revision = ?, backed_up_at = datetime('now')
+     WHERE id = 1 AND ? >= backed_up_revision`
+  ).run(revision, revision);
+  return true;
+}
+
+export function backupStatus() {
+  const row = db.prepare('SELECT * FROM backup_state WHERE id = 1').get();
+  return {
+    unbacked: row.revision > row.backed_up_revision,
+    revision: row.revision,
+    backedUpRevision: row.backed_up_revision,
+    changedAt: row.changed_at,
+    backedUpAt: row.backed_up_at,
+  };
 }
 
 // Runs once, on an empty database. The shuffle happens here and only here: the

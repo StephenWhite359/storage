@@ -12,7 +12,8 @@ import authRoutes, { authHook } from './routes/auth.js';
 import itemRoutes from './routes/items.js';
 import boxRoutes from './routes/boxes.js';
 import scanRoutes from './routes/scan.js';
-import backupRoutes from './routes/backup.js';
+import backupRoutes, { PENDING_COOKIE } from './routes/backup.js';
+import { runInRequest } from './requestContext.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const production = process.env.NODE_ENV === 'production';
@@ -56,6 +57,16 @@ export async function build() {
   await app.register(formbody);
 
   app.addHook('onRequest', authHook);
+
+  // Hands layout() what it cannot get from its callers. `done` is called inside
+  // run(), so the whole rest of the request lifecycle sees these values.
+  app.addHook('onRequest', (request, _reply, done) => {
+    const pending = request.cookies?.[PENDING_COOKIE];
+    runInRequest(
+      { url: request.url, backupPending: /^\d+$/.test(pending ?? '') ? Number(pending) : null },
+      done
+    );
+  });
 
   app.get('/static/:file', async (request, reply) => {
     const asset = STATIC.get(request.params.file);
