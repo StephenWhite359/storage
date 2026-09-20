@@ -13,17 +13,21 @@ export const esc = (value) =>
 
 export const attr = (value) => `"${esc(value)}"`;
 
-// SQLite's datetime('now') is UTC as "YYYY-MM-DD HH:MM:SS". Rendered as a <time>
-// so app.js can show it in the viewer's own timezone; the server-side text is a
-// UTC date, which is only the fallback.
+// SQLite's datetime('now') is UTC as "YYYY-MM-DD HH:MM:SS". Shown in New York
+// time whoever is looking, with the zone abbreviation (EDT/EST) so it is
+// unambiguous across the daylight-saving change.
+const NY_TIME = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/New_York',
+  month: 'short',
+  day: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+  timeZoneName: 'short',
+});
+
 function dateTag(sqliteUtc) {
   const iso = `${sqliteUtc.replace(' ', 'T')}Z`;
-  const label = new Date(iso).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    timeZone: 'UTC',
-  });
-  return `<time datetime="${esc(iso)}">${esc(label)}</time>`;
+  return `<time datetime="${esc(iso)}">${esc(NY_TIME.format(new Date(iso)))}</time>`;
 }
 
 // Backups are still manual, so the app says when one is due. The download is a
