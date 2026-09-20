@@ -70,14 +70,15 @@ export function boxesPage({ boxes, candidates, error }) {
 ${error ? `<p class="error">${esc(error)}</p>` : ''}
 ${addBoxPanel(candidates, '/boxes')}
 
-<form method="get" action="/boxes/print" target="_blank">
+<form method="get" action="/boxes/print">
   <div class="grid" id="box-grid">
     ${boxes.map(tile).join('\n')}
   </div>
   <div class="selbar">
     <span class="count">Select boxes to label</span>
     <button type="button" class="shrink" id="select-all-boxes">Select all</button>
-    <button type="submit" class="primary" id="print-btn" disabled>Print QR</button>
+    <button type="submit" id="preview-btn" disabled>Preview</button>
+    <button type="submit" name="print" value="1" class="primary" id="print-btn" disabled>Print QR</button>
   </div>
 </form>`;
 
@@ -131,7 +132,7 @@ export function boxEditPage({ box, boxes }) {
   <div class="row">
     <button type="submit" class="primary shrink">Save</button>
     <a class="btn shrink" href="/boxes">Cancel</a>
-    <a class="btn shrink" href="/boxes/print?codes=${code}" target="_blank">Print label</a>
+    <a class="btn shrink" href="/boxes/print?codes=${code}">Preview label</a>
   </div>
 </form>
 

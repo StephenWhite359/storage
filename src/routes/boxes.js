@@ -121,6 +121,9 @@ export default async function boxRoutes(app) {
 
     if (!boxes.length) return reply.redirect('/boxes', 302);
 
-    return reply.type('text/html').send(await printPage(boxes));
+    // Preview by default; `print=1` (the "Print QR" button) opens the print
+    // dialog straight away.
+    const autoPrint = request.query.print === '1';
+    return reply.type('text/html').send(await printPage(boxes, { autoPrint }));
   });
 }

@@ -301,7 +301,9 @@ label input, label select, label textarea { margin-top: 4px; font-weight: 400; c
      here - stacked on a .sheet that is exactly one page tall, that pushed every
      print into a second, near-blank page regardless of label count. */
   main { margin: 0; padding: 0; }
-  .noprint { display: none !important; }
+  /* The preview page shows the normal nav bar and footer on screen so it can be
+     left; neither may take up any room on paper. */
+  .topbar, .foot, .noprint { display: none !important; }
   .sheets { overflow: visible; padding: 0; }
   .sheet {
     margin: 0; outline: none;

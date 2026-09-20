@@ -58,10 +58,18 @@ run repeatedly. Take a backup first if you like, but nothing is rewritten.
 The print sheet is laid out for **Avery 15264** shipping labels — 4" x 3-1/3",
 6 per US Letter sheet (the same template as 5164, 5264, 8164 and 55164).
 
-Select boxes on the Boxes page and click **Print QR**. In the print dialog:
+Select boxes on the Boxes page, then either:
+
+- **Preview** opens the label sheet as a normal page (with the Items/Boxes
+  navigation and a **Back to boxes** button) and prints nothing. Review it, then
+  click **Print** on that page. (A single box's edit page has **Preview label**.)
+- **Print QR** opens the same page and goes straight to the print dialog.
+
+In the print dialog:
 
 - **Scale: 100%** (not "Fit to page")
 - **Margins: None**
+- **Headers and footers: off** (Safari: "Print headers and footers")
 
 Anything else shifts the grid and the labels will not line up. Tick **Print cut
 guides** and run one page on plain paper first — hold it against a label sheet
