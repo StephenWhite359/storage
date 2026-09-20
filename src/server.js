@@ -36,11 +36,17 @@ function requireConfig() {
   }
 }
 
-// Two known files, read once at boot and served from a fixed map. There is no
-// path joining here, so no traversal to defend against.
+// Known files, read once at boot and served from a fixed map. There is no path
+// joining from the request here, so no traversal to defend against.
+const ICON_CACHE = 'public, max-age=86400';
 const STATIC = new Map([
   ['app.css', { type: 'text/css; charset=utf-8', body: readFileSync(resolve(here, '../public/app.css')) }],
   ['app.js', { type: 'text/javascript; charset=utf-8', body: readFileSync(resolve(here, '../public/app.js')) }],
+  // Tab icon: SVG for browsers that use it, PNG for Safari (which does not), and
+  // a larger one for iOS home screens. Icons change rarely, so they may be cached.
+  ['favicon.svg', { type: 'image/svg+xml', cache: ICON_CACHE, body: readFileSync(resolve(here, '../public/favicon.svg')) }],
+  ['favicon-32.png', { type: 'image/png', cache: ICON_CACHE, body: readFileSync(resolve(here, '../public/favicon-32.png')) }],
+  ['apple-touch-icon.png', { type: 'image/png', cache: ICON_CACHE, body: readFileSync(resolve(here, '../public/apple-touch-icon.png')) }],
 ]);
 
 export async function build() {
@@ -60,7 +66,14 @@ export async function build() {
   app.get('/static/:file', async (request, reply) => {
     const asset = STATIC.get(request.params.file);
     if (!asset) return reply.code(404).send('Not found');
-    return reply.type(asset.type).header('cache-control', 'no-cache').send(asset.body);
+    return reply.type(asset.type).header('cache-control', asset.cache || 'no-cache').send(asset.body);
+  });
+
+  // Browsers (Safari especially) still ask for /favicon.ico at the root no matter
+  // what the page's <link> tags say. Answer with the PNG rather than a login page.
+  app.get('/favicon.ico', async (_request, reply) => {
+    const icon = STATIC.get('favicon-32.png');
+    return reply.type(icon.type).header('cache-control', icon.cache).send(icon.body);
   });
 
   app.get('/', async (_request, reply) => reply.redirect('/items', 302));

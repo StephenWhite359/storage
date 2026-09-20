@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>Storage</title>
+  <!-- A small isometric shipping box: left and right sides, lid, and packing tape. -->
+  <polygon points="8,18 32,30 32,58 8,46" fill="#c98f4d"/>
+  <polygon points="32,30 56,18 56,46 32,58" fill="#a9713a"/>
+  <polygon points="32,6 56,18 32,30 8,18" fill="#e3b678"/>
+  <!-- tape across the lid and down the front-right side -->
+  <polygon points="16.9,13.6 40.9,25.6 47.1,22.4 23.1,10.4" fill="#f3dcae"/>
+  <polygon points="40.9,25.6 47.1,22.4 47.1,40.4 40.9,43.6" fill="#dcb886"/>
+  <!-- outline and creases -->
+  <g fill="none" stroke="#6f4620" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <polygon points="32,6 56,18 56,46 32,58 8,46 8,18"/>
+    <polyline points="8,18 32,30 56,18"/>
+    <line x1="32" y1="30" x2="32" y2="58"/>
+  </g>
+</svg>
