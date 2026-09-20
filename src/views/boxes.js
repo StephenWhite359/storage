@@ -38,25 +38,36 @@ export function addBoxPanel(candidates, next) {
 </form>`;
 }
 
+// Clicking a real box's card selects it for printing. The card is a <label>
+// around a visually hidden checkbox, so that needs no script, works from the
+// keyboard (Tab to the card, Space to toggle), and still submits `codes` with the
+// print form. Links inside a label do not toggle it, which is what lets "View
+// contents" and "Edit" sit on the card without also selecting it. "Not in
+// Storage" has no label to print, so it is a plain, non-selectable card. Inner
+// parts are spans (a label may only hold phrasing content); app.css makes them
+// blocks.
 const tile = (box) => {
   const label = `${box.glyph} ${box.name}`;
-  return `<div class="box-tile${box.is_default ? ' default' : ''}">
-  ${
-    box.is_default
-      ? ''
-      : `<input class="pick" type="checkbox" name="codes" value="${esc(box.code)}"
-                aria-label="Select ${esc(label)} for printing">
+
+  const contents = `
+  <span class="glyph">${esc(box.glyph)}</span>
+  <span class="name">${esc(box.name)}</span>
+  <span class="count">${box.item_count} ${box.item_count === 1 ? 'item' : 'items'}</span>
+  ${box.description ? `<span class="desc">${esc(box.description)}</span>` : ''}
+  <span class="tags">${tagChips(box.tags)}</span>
+  <span class="tile-actions">
+    <a class="tile-view" href="/items?box=${encodeURIComponent(box.code)}"
+       aria-label="View contents of ${esc(label)}">View contents</a>
+  </span>`;
+
+  if (box.is_default) return `<div class="box-tile default">${contents}\n</div>`;
+
+  return `<label class="box-tile">
+  <input class="pick" type="checkbox" name="codes" value="${esc(box.code)}"
+         aria-label="Select ${esc(label)} for printing">
   <a class="tile-edit" href="/boxes/${encodeURIComponent(box.code)}/edit"
-     aria-label="Edit ${esc(label)}">Edit</a>`
-  }
-  <a href="/items?box=${encodeURIComponent(box.code)}">
-    <div class="glyph">${esc(box.glyph)}</div>
-    <div class="name">${esc(box.name)}</div>
-    <div class="count">${box.item_count} ${box.item_count === 1 ? 'item' : 'items'}</div>
-    ${box.description ? `<div class="desc">${esc(box.description)}</div>` : ''}
-  </a>
-  <div class="tags">${tagChips(box.tags)}</div>
-</div>`;
+     aria-label="Edit ${esc(label)}">Edit</a>${contents}
+</label>`;
 };
 
 export function boxesPage({ boxes, candidates, error }) {
@@ -74,8 +85,8 @@ ${addBoxPanel(candidates, '/boxes')}
   <div class="grid" id="box-grid">
     ${boxes.map(tile).join('\n')}
   </div>
-  <div class="selbar">
-    <span class="count">Select boxes to label</span>
+  <div class="selbar compact">
+    <span class="count">Click boxes to select them for labels</span>
     <button type="button" class="shrink" id="select-all-boxes">Select all</button>
     <button type="submit" id="preview-btn" disabled>Preview</button>
     <button type="submit" name="print" value="1" class="primary" id="print-btn" disabled>Print QR</button>

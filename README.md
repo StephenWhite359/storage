@@ -58,7 +58,9 @@ run repeatedly. Take a backup first if you like, but nothing is rewritten.
 The print sheet is laid out for **Avery 15264** shipping labels — 4" x 3-1/3",
 6 per US Letter sheet (the same template as 5164, 5264, 8164 and 55164).
 
-Select boxes on the Boxes page, then either:
+On the Boxes page, click a box's card to select it (a checkmark badge shows what
+is selected; the blue **View contents** button on each card opens its items), then
+either:
 
 - **Preview** opens the label sheet as a normal page (with the Items/Boxes
   navigation and a **Back to boxes** button) and prints nothing. Review it, then

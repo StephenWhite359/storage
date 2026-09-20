@@ -178,6 +178,14 @@ label input, label select, label textarea { margin-top: 4px; font-weight: 400; c
   box-shadow: 0 6px 20px rgba(0,0,0,.12);
 }
 .selbar .count { font-weight: 600; margin-right: auto; }
+/* On a phone the Boxes bar (hint + three buttons) would wrap to three lines and
+   cover much of the screen: give the hint its own line and shrink the buttons so
+   they share one row underneath. */
+@media (max-width: 480px) {
+  .selbar.compact { gap: 6px; padding: 10px; }
+  .selbar.compact .count { flex: 1 0 100%; }
+  .selbar.compact button { padding: 8px 11px; font-size: 14px; }
+}
 .selbar select { width: auto; }
 .confirm { border-color: var(--danger); background: var(--danger-bg); }
 .confirm .names { margin: 8px 0; font-size: 14px; overflow-wrap: anywhere; }
@@ -189,31 +197,63 @@ label input, label select, label textarea { margin-top: 4px; font-weight: 400; c
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
 }
 .box-tile {
-  position: relative;
+  position: relative; display: flex; flex-direction: column;
   background: var(--card); border: 1px solid var(--line);
   border-radius: 14px; padding: 14px; text-align: center;
+  /* Selectable cards are <label>s, and the global label style is small, bold and
+     muted - reset it so the card reads like any other. */
+  color: var(--ink); font-size: 16px; font-weight: 400;
+  -webkit-user-select: none; user-select: none;
 }
-.box-tile.sel { border-color: var(--accent); }
-.box-tile.default { border-style: dashed; }
-.box-tile a { text-decoration: none; color: inherit; display: block; }
-.box-tile .glyph { font-size: 42px; line-height: 1.2; }
-.box-tile .name { font-weight: 600; margin-top: 4px; }
-.box-tile .count { color: var(--muted); font-size: 13px; }
-.box-tile .tags { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
-.box-tile .pick { position: absolute; top: 10px; left: 10px; width: 18px; height: 18px; }
+/* The card's parts are spans (a label may only hold phrasing content). */
+.box-tile .glyph { display: block; font-size: 42px; line-height: 1.2; }
+.box-tile .name { display: block; font-weight: 600; margin-top: 4px; }
+.box-tile .count { display: block; color: var(--muted); font-size: 13px; }
 .box-tile .desc {
   color: var(--muted); font-size: 12.5px; line-height: 1.3; margin-top: 4px;
   overflow-wrap: anywhere;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
-/* `.box-tile a` above makes every link a block; this one is a small pill in the
-   corner opposite the print checkbox. */
+.box-tile .tags { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+
+/* Selecting: click anywhere on a real box's card. */
+label.box-tile { cursor: pointer; }
+label.box-tile:hover { border-color: var(--muted); }
+.box-tile.default { border-style: dashed; }
+.box-tile.sel {
+  border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent);
+  background: color-mix(in srgb, var(--accent) 7%, var(--card));
+}
+/* With no checkbox to look at, a badge shows what is selected. */
+.box-tile.sel::before {
+  content: "\2713"; position: absolute; top: 10px; left: 10px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); color: var(--accent-ink);
+  font-size: 13px; font-weight: 700; line-height: 22px;
+}
+/* The real checkbox stays for the form and the keyboard, but is not drawn. */
+.box-tile .pick {
+  position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; pointer-events: none;
+}
+.box-tile:has(.pick:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Small pill in the corner opposite the selected badge. */
 .box-tile a.tile-edit {
-  position: absolute; top: 8px; right: 8px; display: inline-block;
+  position: absolute; top: 8px; right: 8px;
   padding: 2px 9px; border-radius: 999px; background: var(--chip);
-  color: var(--muted); font-size: 12px; font-weight: 600;
+  color: var(--muted); font-size: 12px; font-weight: 600; text-decoration: none;
 }
 .box-tile a.tile-edit:hover { color: var(--ink); }
+
+/* The blue "View contents" button; pinned to the bottom so buttons line up
+   across a row of cards of different heights. */
+.box-tile .tile-actions { display: block; margin-top: auto; padding-top: 12px; }
+.box-tile a.tile-view {
+  display: inline-block; padding: 6px 14px; border-radius: var(--radius);
+  background: var(--accent); color: var(--accent-ink);
+  font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer;
+}
+.box-tile a.tile-view:hover { filter: brightness(1.08); }
 
 /* ------------------------------------------------------- add box preview */
 
