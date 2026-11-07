@@ -8,6 +8,7 @@ import {
   deleteItems,
   listItems,
   nextIdentifiers,
+  unboxedBox,
 } from '../db.js';
 import { itemsPage } from '../views/items.js';
 import { asCodes, asIds, itemsUrl, parseQuery, safeNext } from '../util.js';
@@ -81,9 +82,14 @@ export default async function itemRoutes(app) {
       return reply.redirect(next, 302);
     }
 
-    // "Not in storage" is an ordinary move - the default box is a box like any
-    // other, it just has no printable label.
-    const target = action === 'assign-default' ? defaultBox() : boxByCode(body.box_code);
+    // "Not in storage" and "Storage" are ordinary moves - those are boxes like
+    // any other, they just have no printable label.
+    const target =
+      action === 'assign-default'
+        ? defaultBox()
+        : action === 'assign-unboxed'
+          ? unboxedBox()
+          : boxByCode(body.box_code);
     if (!target) return reply.code(400).send('Unknown box.');
 
     assignItems(ids, target.id);

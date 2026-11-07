@@ -3,7 +3,7 @@ import { randomInt } from 'node:crypto';
 import { readFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { POOL, RESERVED } from './seed/identifiers.js';
+import { POOL, RESERVED, UNBOXED } from './seed/identifiers.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -33,6 +33,7 @@ export function migrate() {
   addMissingColumns();
   trackBackups();
   seed();
+  ensureUnboxedBox();
 }
 
 // schema.sql is all CREATE ... IF NOT EXISTS, which is a no-op on a database
@@ -41,7 +42,10 @@ export function migrate() {
 // the first release is listed here and applied once, additively and nullable, so
 // existing rows and already-printed labels are untouched.
 function addMissingColumns() {
-  const columnsAdded = [{ table: 'boxes', column: 'description', type: 'TEXT' }];
+  const columnsAdded = [
+    { table: 'boxes', column: 'description', type: 'TEXT' },
+    { table: 'boxes', column: 'is_unboxed', type: 'INTEGER NOT NULL DEFAULT 0' },
+  ];
 
   for (const { table, column, type } of columnsAdded) {
     const present = db.prepare(`PRAGMA table_info(${table})`).all();
@@ -154,6 +158,27 @@ function seed() {
   })();
 }
 
+// The "Storage" box (items that are in storage but not in a labelled box) is added
+// on every boot if missing, not in seed(), so existing databases pick it up too.
+// Its identifier takes seq -1: seq is UNIQUE, 0 is Not in Storage and 1..n is the
+// draw. The partial index lives here rather than in schema.sql because schema.sql
+// runs before addMissingColumns() has added is_unboxed to an old database.
+function ensureUnboxedBox() {
+  db.exec(
+    'CREATE UNIQUE INDEX IF NOT EXISTS boxes_one_unboxed ON boxes(is_unboxed) WHERE is_unboxed = 1'
+  );
+  if (db.prepare('SELECT 1 FROM boxes WHERE is_unboxed = 1').get()) return;
+
+  db.transaction(() => {
+    const { lastInsertRowid } = db
+      .prepare('INSERT INTO identifiers (name, glyph, seq, reserved) VALUES (?, ?, -1, 1)')
+      .run(UNBOXED.name, UNBOXED.glyph);
+    db.prepare(
+      'INSERT INTO boxes (code, identifier_id, is_default, is_unboxed) VALUES (?, ?, 0, 1)'
+    ).run(generateCode(), lastInsertRowid);
+  })();
+}
+
 // Fisher-Yates using crypto randomInt rather than Math.random.
 function shuffle(list) {
   for (let i = list.length - 1; i > 0; i--) {
@@ -178,6 +203,9 @@ const splitTags = (packed) => (packed ? packed.split(SEP) : []);
 export const defaultBox = () =>
   db.prepare('SELECT * FROM boxes WHERE is_default = 1').get();
 
+export const unboxedBox = () =>
+  db.prepare('SELECT * FROM boxes WHERE is_unboxed = 1').get();
+
 export const boxByCode = (code) =>
   db.prepare('SELECT * FROM boxes WHERE code = ?').get(String(code || ''));
 
@@ -185,7 +213,7 @@ export const boxByCode = (code) =>
 // tags across each box's contents. The items list and the boxes grid are two
 // renderings over this same layer.
 const BOX_SUMMARIES = `
-  SELECT b.id, b.code, b.is_default, b.description, i.name, i.glyph,
+  SELECT b.id, b.code, b.is_default, b.is_unboxed, b.description, i.name, i.glyph,
          (SELECT count(*) FROM items it WHERE it.box_id = b.id) AS item_count,
          (SELECT group_concat(name, '${SEP}') FROM (
             SELECT DISTINCT t.name
@@ -197,7 +225,7 @@ const BOX_SUMMARIES = `
          )) AS tags
   FROM boxes b
   JOIN identifiers i ON i.id = b.identifier_id
-  ORDER BY b.is_default DESC, i.name COLLATE NOCASE`;
+  ORDER BY b.is_default DESC, b.is_unboxed DESC, i.name COLLATE NOCASE`;
 
 export function boxSummaries() {
   return db
@@ -210,9 +238,9 @@ export function boxSummaries() {
 export const boxOptions = () =>
   db
     .prepare(
-      `SELECT b.code, b.is_default, i.name, i.glyph
+      `SELECT b.code, b.is_default, b.is_unboxed, i.name, i.glyph
        FROM boxes b JOIN identifiers i ON i.id = b.identifier_id
-       ORDER BY b.is_default DESC, i.name COLLATE NOCASE`
+       ORDER BY b.is_default DESC, b.is_unboxed DESC, i.name COLLATE NOCASE`
     )
     .all();
 
@@ -257,15 +285,16 @@ export const updateBoxDescription = (boxId, description) =>
 // items.box_id is NOT NULL with no ON DELETE, so a box that still holds items
 // cannot simply be deleted - the database refuses. Move the items first and
 // delete second, in one transaction, so a failure part-way leaves every item
-// exactly where it was. The is_default = 0 guard is a second line of defence
-// behind the route's own check: the "Not in Storage" box must never go.
+// exactly where it was. The is_default / is_unboxed guard is a second line of
+// defence behind the route's own check: neither "Not in Storage" nor "Storage"
+// may ever go.
 export const deleteBox = db.transaction((boxId, targetBoxId) => {
   const moved = db
     .prepare('UPDATE items SET box_id = ? WHERE box_id = ?')
     .run(targetBoxId, boxId).changes;
 
   const removed = db
-    .prepare('DELETE FROM boxes WHERE id = ? AND is_default = 0')
+    .prepare('DELETE FROM boxes WHERE id = ? AND is_default = 0 AND is_unboxed = 0')
     .run(boxId).changes;
 
   // Throwing inside db.transaction rolls the item move back too.
@@ -319,7 +348,7 @@ export function listItems({ q = '', boxCodes = [], tagIds = [] } = {}) {
 
   const sql = `
     SELECT i.id, i.name, i.note,
-           b.code AS box_code, b.is_default AS box_is_default,
+           b.code AS box_code, b.is_default AS box_is_default, b.is_unboxed AS box_is_unboxed,
            d.name AS box_name, d.glyph AS box_glyph,
            (SELECT group_concat(name, '${SEP}') FROM (
               SELECT t.name FROM item_tags m JOIN tags t ON t.id = m.tag_id
@@ -329,7 +358,7 @@ export function listItems({ q = '', boxCodes = [], tagIds = [] } = {}) {
     JOIN boxes b ON b.id = i.box_id
     JOIN identifiers d ON d.id = b.identifier_id
     ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
-    ORDER BY b.is_default DESC, d.name COLLATE NOCASE, i.name COLLATE NOCASE`;
+    ORDER BY b.is_default DESC, b.is_unboxed DESC, d.name COLLATE NOCASE, i.name COLLATE NOCASE`;
 
   return db
     .prepare(sql)

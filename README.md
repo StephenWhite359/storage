@@ -34,6 +34,11 @@ appears in the grid, counts its contents, and is a valid target for a move. It
 differs only in having no physical counterpart: it cannot be printed and cannot
 be deleted.
 
+**Storage** (📦) is a second box of the same kind, for items that are in the storage
+unit but not in any labelled box. It has its own reserved identifier, sorts right
+after Not in Storage, and likewise cannot be printed, edited or deleted. It is
+added on boot if missing, so existing databases pick it up automatically.
+
 **QR codes are never stored.** Each box has a short code; its QR encodes
 `BASE_URL/b/<code>` and is rendered on demand. Scanning opens the Items page
 filtered to that box, reusing the same page and the same query layer as

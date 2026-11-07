@@ -24,10 +24,13 @@ const render = (reply, error = null) =>
     })
   );
 
-// The default box has no label and no edit page: it cannot be described or
-// deleted, so anything that resolves to it is treated as "nothing to edit".
+// The default box and the Storage box have no label and no edit page: they cannot
+// be described or deleted, so anything that resolves to one is treated as
+// "nothing to edit".
+const isSpecial = (box) => Boolean(box.is_default || box.is_unboxed);
+
 const editableSummary = (code) =>
-  boxSummaries().find((b) => b.code === code && !b.is_default);
+  boxSummaries().find((b) => b.code === code && !isSpecial(b));
 
 export default async function boxRoutes(app) {
   app.get('/boxes', async (_request, reply) => render(reply));
@@ -64,7 +67,7 @@ export default async function boxRoutes(app) {
 
   app.post('/boxes/:code/edit', async (request, reply) => {
     const box = boxByCode(request.params.code);
-    if (!box || box.is_default) return reply.redirect('/boxes', 302);
+    if (!box || isSpecial(box)) return reply.redirect('/boxes', 302);
 
     updateBoxDescription(box.id, cleanDescription(request.body?.description));
     return reply.redirect('/boxes', 302);
@@ -77,8 +80,8 @@ export default async function boxRoutes(app) {
     // Already gone (a double submit, or a second tab): the outcome the user
     // wanted has happened, so land on the list rather than erroring.
     if (!box) return reply.redirect('/boxes', 302);
-    if (box.is_default) {
-      return reply.code(400).send('The Not in Storage box cannot be deleted.');
+    if (isSpecial(box)) {
+      return reply.code(400).send(`The ${box.is_default ? 'Not in Storage' : 'Storage'} box cannot be deleted.`);
     }
 
     // The in-page panel is not the only gate: posting straight at this route
@@ -97,8 +100,9 @@ export default async function boxRoutes(app) {
     return reply.redirect('/boxes', 302);
   });
 
-  // The default box has no physical counterpart, so it is filtered out here as
-  // well as hidden in the UI - a hand-written code cannot slip it in.
+  // The default and Storage boxes have no physical counterpart, so they are
+  // filtered out here as well as hidden in the UI - a hand-written code cannot
+  // slip them in.
   app.get('/boxes/print', async (request, reply) => {
     const codes = asArray(request.query.codes).flatMap((value) =>
       String(value)
@@ -114,7 +118,7 @@ export default async function boxRoutes(app) {
       .prepare(
         `SELECT b.code, b.description, i.name, i.glyph
          FROM boxes b JOIN identifiers i ON i.id = b.identifier_id
-         WHERE b.code IN (${placeholders}) AND b.is_default = 0
+         WHERE b.code IN (${placeholders}) AND b.is_default = 0 AND b.is_unboxed = 0
          ORDER BY i.name COLLATE NOCASE`
       )
       .all(...codes);
