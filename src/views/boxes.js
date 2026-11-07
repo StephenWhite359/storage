@@ -43,7 +43,8 @@ export function addBoxPanel(candidates, next) {
 // keyboard (Tab to the card, Space to toggle), and still submits `codes` with the
 // print form. Links inside a label do not toggle it, which is what lets "View
 // contents" and "Edit" sit on the card without also selecting it. "Not in
-// Storage" has no label to print, so it is a plain, non-selectable card. Inner
+// Storage" and "Storage" have no label to print, so they are plain,
+// non-selectable cards. Inner
 // parts are spans (a label may only hold phrasing content); app.css makes them
 // blocks.
 const tile = (box) => {
@@ -60,7 +61,7 @@ const tile = (box) => {
        aria-label="View contents of ${esc(label)}">View contents</a>
   </span>`;
 
-  if (box.is_default) return `<div class="box-tile default">${contents}\n</div>`;
+  if (box.is_default || box.is_unboxed) return `<div class="box-tile default">${contents}\n</div>`;
 
   return `<label class="box-tile">
   <input class="pick" type="checkbox" name="codes" value="${esc(box.code)}"

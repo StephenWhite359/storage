@@ -27,9 +27,10 @@ export function itemsPage({ items, boxes, tags, candidates, filters, here, error
   const addBoxCode = filteredBoxCode || boxes.find((b) => b.is_default)?.code;
 
   // The Move select should not default to the box you are already looking at,
-  // nor to Not in Storage, which has its own button beside it.
+  // nor to Not in Storage or Storage, which have their own buttons beside it.
   const moveBoxCode =
-    boxes.find((b) => !b.is_default && b.code !== filteredBoxCode)?.code || addBoxCode;
+    boxes.find((b) => !b.is_default && !b.is_unboxed && b.code !== filteredBoxCode)?.code ||
+    addBoxCode;
 
   const boxDropdown = multiSelectField({
     name: 'box',
@@ -125,6 +126,7 @@ export function itemsPage({ items, boxes, tags, candidates, filters, here, error
       ${boxes.map((b) => boxOption(b, moveBoxCode)).join('')}
     </select>
     <button type="submit" name="action" value="assign" class="primary">Move</button>
+    <button type="submit" name="action" value="assign-unboxed">Storage</button>
     <button type="submit" name="action" value="assign-default">Not in storage</button>
     <button type="button" id="ask-delete" class="danger">Delete</button>
   </div>
@@ -132,7 +134,7 @@ export function itemsPage({ items, boxes, tags, candidates, filters, here, error
     <strong>Delete permanently?</strong>
     <div class="names" id="sel-names"></div>
     <p class="hint">This cannot be undone. To keep an item but take it out of a box,
-       use &ldquo;Not in storage&rdquo; instead.</p>
+       use &ldquo;Storage&rdquo; or &ldquo;Not in storage&rdquo; instead.</p>
     <input type="hidden" name="confirm" value="1">
     <div class="row">
       <button type="submit" name="action" value="delete" class="danger shrink"

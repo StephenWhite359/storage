@@ -3,9 +3,11 @@
 // glance from across a room and distinct from every other glyph in the list.
 //
 // RESERVED is held back from the draw and belongs permanently to the default
-// box. Its glyph must not appear in POOL.
+// box. UNBOXED does the same for the "Storage" box, which holds items that are in
+// storage but not in any labelled box. Neither glyph may appear in POOL.
 
 export const RESERVED = { name: 'Not in Storage', glyph: '\u{1F3E0}' };
+export const UNBOXED = { name: 'Storage', glyph: '\u{1F4E6}' };
 
 export const POOL = [
   { name: 'Dog', glyph: '\u{1F436}' },
